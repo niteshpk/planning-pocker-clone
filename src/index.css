@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* Custom styles for Planning Poker */
+@layer components {
+  .card-voting {
+    @apply bg-white border-2 border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer select-none;
+  }
+  
+  .card-voting:hover {
+    @apply border-blue-300 transform scale-105;
+  }
+  
+  .card-voting.selected {
+    @apply border-blue-500 bg-blue-50;
+  }
+  
+  .card-voting.revealed {
+    @apply bg-gray-100 cursor-default transform-none;
+  }
+  
+  .btn-primary {
+    @apply bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+}
