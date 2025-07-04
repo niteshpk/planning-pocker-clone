@@ -1,0 +1,403 @@
+{
+  "info": {
+    "name": "Pocker API Collection",
+    "description": "Complete API collection for the Pocker planning poker application",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Voting Systems",
+      "item": [
+        {
+          "name": "Get Voting Systems",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/voting-systems",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "voting-systems"]
+            },
+            "description": "Retrieve all available voting systems (Fibonacci, T-Shirt sizes, etc.)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "Create Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sprint Planning\",\n  \"hostName\": \"John Doe\",\n  \"votingSystem\": \"Fibonacci\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms"]
+            },
+            "description": "Create a new planning poker room with a host user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Room Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomCode}}"]
+            },
+            "description": "Get details of a specific room including users and stories"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Room",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Room Name\",\n  \"isVotingRevealed\": true,\n  \"currentStoryId\": \"story-id-here\",\n  \"votingSystemName\": \"T-Shirt\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomCode}}"]
+            },
+            "description": "Update room settings and configuration"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Room",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomCode}}"]
+            },
+            "description": "Delete a room and all associated data"
+          },
+          "response": []
+        },
+        {
+          "name": "Join Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"Jane Smith\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomCode}}/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomCode}}", "join"]
+            },
+            "description": "Join an existing room as a new user or reconnect as existing user"
+          },
+          "response": []
+        },
+        {
+          "name": "Reveal Votes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomCode}}/reveal-votes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomCode}}", "reveal-votes"]
+            },
+            "description": "Reveal all votes in the room"
+          },
+          "response": []
+        },
+        {
+          "name": "Clear Votes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomCode}}/clear-votes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomCode}}", "clear-votes"]
+            },
+            "description": "Clear all votes and reset voting state"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Stories",
+      "item": [
+        {
+          "name": "Create Story",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"User Authentication\",\n  \"description\": \"As a user, I want to be able to log in to the system so that I can access my account.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomCode}}/stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomCode}}", "stories"]
+            },
+            "description": "Create a new story in a room for estimation"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Story",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Story Title\",\n  \"description\": \"Updated story description\",\n  \"estimate\": \"8\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stories", "{{storyId}}"]
+            },
+            "description": "Update story details, estimate, or set as active story"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Story",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stories", "{{storyId}}"]
+            },
+            "description": "Delete a story from the room"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated User Name\",\n  \"isConnected\": true,\n  \"vote\": \"5\",\n  \"hasVoted\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}"]
+            },
+            "description": "Update user information and connection status"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}"]
+            },
+            "description": "Remove a user from the room"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Voting",
+      "item": [
+        {
+          "name": "Cast Vote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vote\": \"8\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/vote",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "vote"]
+            },
+            "description": "Cast a vote for the current story"
+          },
+          "response": []
+        },
+        {
+          "name": "Clear User Vote",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/vote",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "vote"]
+            },
+            "description": "Clear a user's vote for the current story"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "description": "Base URL for the Pocker API"
+    },
+    {
+      "key": "roomCode",
+      "value": "ABC123",
+      "description": "Room code for testing (replace with actual room code)"
+    },
+    {
+      "key": "userId",
+      "value": "user-id-here",
+      "description": "User ID for testing (replace with actual user ID)"
+    },
+    {
+      "key": "storyId",
+      "value": "story-id-here",
+      "description": "Story ID for testing (replace with actual story ID)"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Pre-request script for common setup",
+          "// You can add authentication tokens or other common headers here"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Common test script",
+          "pm.test('Response status code is successful', function () {",
+          "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+          "});",
+          "",
+          "pm.test('Response has success field', function () {",
+          "    const responseJson = pm.response.json();",
+          "    pm.expect(responseJson).to.have.property('success');",
+          "});",
+          "",
+          "pm.test('Response time is acceptable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});"
+        ]
+      }
+    }
+  ]
+}

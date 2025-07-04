@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Users, Zap, AlertCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { useUserStore } from '../stores/userStore';
 import { useRoomStore } from '../stores/roomStore';
 import { generateUserId, validateRoomCode } from '../utils/helpers';
-import { debugRoomStorage, clearOldRooms } from '../utils/roomDebug';
+
 import { VOTING_SYSTEMS } from '../types';
 
 interface LandingPageProps {
@@ -30,10 +30,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const { setCurrentUser } = useUserStore();
   const { createRoom, joinRoom } = useRoomStore();
 
-  // Clean up old rooms on component mount
-  useEffect(() => {
-    clearOldRooms();
-  }, []);
+
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -81,17 +78,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           vs => vs.name === formData.votingSystem
         ) || VOTING_SYSTEMS[0];
         
-        createRoom(formData.roomName.trim(), user, selectedVotingSystem);
+        await createRoom(formData.roomName.trim(), user, selectedVotingSystem);
         onRoomCreated();
       } else {
         try {
-          joinRoom(formData.roomCode.toUpperCase(), user);
+          await joinRoom(formData.roomCode.toUpperCase(), user);
           onRoomJoined();
         } catch (joinError: any) {
           console.error('Room join error:', joinError);
-          
-          // Debug room storage when join fails
-          debugRoomStorage();
           
           // Extract just the first line of the error message for better UX
           const errorLines = joinError.message.split('\n');
@@ -101,6 +95,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           setLoading(false);
           return;
         }
+
       }
     } catch (error) {
       console.error('Error creating/joining room:', error);
@@ -160,18 +155,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-500 mb-4">
-              No backend required • Peer-to-peer connection • Real-time collaboration
+              Real-time collaboration • Persistent data storage • Team estimation
             </p>
             
-            {/* Debug button for development */}
-            <Button
-              onClick={debugRoomStorage}
-              variant="ghost"
-              size="sm"
-              className="text-xs text-gray-400 hover:text-gray-600"
-            >
-              Debug Room Storage
-            </Button>
+
           </div>
         </div>
       </div>
@@ -257,9 +244,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <div>
                     <p className="font-medium">Can't find the room?</p>
                     <ul className="mt-1 text-xs space-y-1">
-                      <li>• Make sure you're using the same browser as the room creator</li>
-                      <li>• Check that the room code is correct (6 characters)</li>
-                      <li>• Rooms are stored locally and may expire after 24 hours</li>
+                      <li>• Make sure the room code is correct (6 characters)</li>
+                      <li>• Ask the room creator for the correct code</li>
+                      <li>• The room must be active and accessible</li>
                     </ul>
                   </div>
                 </div>

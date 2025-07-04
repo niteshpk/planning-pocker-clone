@@ -1,6 +1,6 @@
 # Planning Poker Application
 
-A complete Planning Poker application with React frontend and Next.js backend.
+A complete Planning Poker application with React frontend and Next.js backend using MongoDB for data persistence.
 
 ## Project Structure
 
@@ -10,10 +10,7 @@ pocker/
 │   ├── src/
 │   │   ├── components/
 │   │   ├── pages/
-│   │   ├── stores/
-│   │   │   ├── roomStore.ts      # Original localStorage version
-│   │   │   ├── roomStoreApi.ts   # New API version
-│   │   │   └── userStore.ts
+│   │   ├── stores/      # API-based Zustand stores
 │   │   ├── lib/
 │   │   │   └── api-client.ts     # API client for backend
 │   │   └── types/
@@ -30,10 +27,10 @@ pocker/
 
 ### Frontend (Client)
 - **React 18** with TypeScript and Vite
-- **Zustand** for state management
+- **Zustand** for state management (API-based)
 - **Tailwind CSS** for styling
-- **WebRTC** for real-time communication (demo mode)
-- **Dual Storage Modes**: localStorage (demo) and API backend
+- **WebRTC** for real-time communication
+- **API Integration** for all data operations
 
 ### Backend (Server)
 - **Next.js 14** with App Router
@@ -49,13 +46,14 @@ pocker/
 - ✅ Voting with multiple card systems (Fibonacci, T-shirt, etc.)
 - ✅ Vote reveal/hide functionality
 - ✅ Real-time state synchronization
-- ✅ Data persistence (localStorage or MongoDB)
+- ✅ Data persistence in MongoDB
+- ✅ Multi-user support across browsers
 
 ## Quick Start
 
-### 1. Start the Backend (Optional)
+### 1. Start the Backend (Required)
 
-If you want to use the API backend with MongoDB:
+The application requires the backend server with MongoDB:
 
 ```bash
 # Navigate to server directory
@@ -87,25 +85,14 @@ cd client
 # Install dependencies
 npm install
 
+# Set up environment variables
+echo "VITE_API_URL=http://localhost:3001/api" > .env
+
 # Start development server
 npm run dev
 ```
 
 The frontend will be available at `http://localhost:5173`
-
-## Usage Modes
-
-### Demo Mode (localStorage)
-- Works without backend server
-- Data stored in browser localStorage
-- Perfect for testing and demos
-- Limited to single browser session
-
-### API Mode (MongoDB)
-- Requires backend server running
-- Data persisted in MongoDB
-- Supports multiple users across different browsers
-- Production-ready architecture
 
 ## API Endpoints
 
@@ -188,22 +175,14 @@ ALLOWED_ORIGINS="http://localhost:5173,http://localhost:3000"
 - System name (Fibonacci, T-shirt, etc.)
 - Available values array
 
-## Migration from localStorage to API
+## Architecture
 
-The application supports both storage modes:
+The application uses a client-server architecture:
 
-1. **Original**: Uses `roomStore.ts` with localStorage
-2. **New**: Uses `roomStoreApi.ts` with API backend
-
-To switch between modes, update your imports:
-
-```typescript
-// localStorage version
-import { useRoomStore } from '../stores/roomStore';
-
-// API version  
-import { useRoomStore } from '../stores/roomStoreApi';
-```
+- **Frontend**: React SPA that communicates with the backend via REST APIs
+- **Backend**: Next.js API server with MongoDB database
+- **State Management**: Zustand stores that sync with the API
+- **Data Flow**: All operations go through API endpoints for persistence
 
 ## Deployment
 
@@ -217,12 +196,17 @@ import { useRoomStore } from '../stores/roomStoreApi';
 2. Set environment variables (DATABASE_URL, etc.)
 3. Run database migrations: `npm run db:push`
 
+### MongoDB Setup
+- Use MongoDB Atlas for cloud hosting
+- Or set up local MongoDB with replica set for transactions
+- Ensure connection string is properly configured
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test both localStorage and API modes
+4. Test with both frontend and backend running
 5. Submit a pull request
 
 ## License

@@ -1,437 +1,361 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { Room, Story, User, VotingSystem, VOTING_SYSTEMS, RoomStatus } from '../types';
+import { apiClient } from '../lib/api-client';
 
 interface RoomState {
   currentRoom: Room | null;
   roomStatus: RoomStatus;
+  currentUser: User | null;
   
   // Room management
-  createRoom: (name: string, hostUser: User, votingSystem?: VotingSystem) => Room;
-  joinRoom: (roomId: string, user: User) => void;
+  createRoom: (name: string, hostUser: User, votingSystem?: VotingSystem) => Promise<Room>;
+  joinRoom: (roomId: string, user: User) => Promise<void>;
   leaveRoom: () => void;
-  updateRoom: (updates: Partial<Room>) => void;
+  updateRoom: (updates: Partial<Room>) => Promise<void>;
   
   // User management
   addUser: (user: User) => void;
-  removeUser: (userId: string) => void;
-  updateUser: (userId: string, updates: Partial<User>) => void;
+  removeUser: (userId: string) => Promise<void>;
+  updateUser: (userId: string, updates: Partial<User>) => Promise<void>;
   simulateUserJoin: (user: User) => void;
+  setCurrentUser: (user: User) => void;
   
   // Story management
-  addStory: (story: Omit<Story, 'id' | 'createdAt'>) => void;
+  addStory: (story: Omit<Story, 'id' | 'createdAt'>) => Promise<void>;
   addStoryFromWebRTC: (story: Story) => void;
-  updateStory: (storyId: string, updates: Partial<Story>) => void;
-  removeStory: (storyId: string) => void;
-  setCurrentStory: (storyId: string) => void;
+  updateStory: (storyId: string, updates: Partial<Story>) => Promise<void>;
+  removeStory: (storyId: string) => Promise<void>;
+  setCurrentStory: (storyId: string) => Promise<void>;
   
   // Voting management
-  castVote: (userId: string, vote: string) => void;
-  revealVotes: () => void;
-  clearVotes: () => void;
+  castVote: (userId: string, vote: string) => Promise<void>;
+  revealVotes: () => Promise<void>;
+  clearVotes: () => Promise<void>;
   setRoomStatus: (status: RoomStatus) => void;
+  
+  // Data refresh
+  refreshRoom: () => Promise<void>;
 }
 
-export const useRoomStore = create<RoomState>()(
-  persist(
-    (set, get) => ({
-      currentRoom: null,
-      roomStatus: 'waiting',
+export const useRoomStore = create<RoomState>()((set, get) => ({
+  currentRoom: null,
+  roomStatus: 'waiting',
+  currentUser: null,
+  
+  createRoom: async (name: string, hostUser: User, votingSystem = VOTING_SYSTEMS[0]) => {
+    try {
+      const response = await apiClient.createRoom({
+        name,
+        hostName: hostUser.name,
+        votingSystem: votingSystem.name
+      });
+
+      if (response.success && response.data) {
+        const room = response.data as Room;
+        const host = room.users.find((u: User) => u.isHost);
+        
+        set({ 
+          currentRoom: room, 
+          roomStatus: 'waiting',
+          currentUser: host 
+        });
+        
+        return room;
+      } else {
+        throw new Error(response.error || 'Failed to create room');
+      }
+    } catch (error) {
+      console.error('Error creating room:', error);
+      throw error;
+    }
+  },
+
+  // Simulate other users joining the room (for demo purposes)
+  simulateUserJoin: (user: User) => {
+    const { addUser } = get();
+    addUser(user);
+  },
+  
+  joinRoom: async (roomId: string, user: User) => {
+    try {
+      const normalizedRoomId = roomId.toUpperCase().trim();
       
-      createRoom: (name: string, hostUser: User, votingSystem = VOTING_SYSTEMS[0]) => {
-        // Generate a unique room ID
-        let roomId: string;
-        let attempts = 0;
-        const maxAttempts = 10;
+      const response = await apiClient.joinRoom(normalizedRoomId, user.name);
+      
+      if (response.success && response.data) {
+        const { room, user: joinedUser } = response.data as { room: Room; user: User };
         
-        do {
-          roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-          attempts++;
-          
-          // Check if room ID is unique
-          try {
-            const storedRooms = localStorage.getItem('demo-rooms');
-            const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-            const isUnique = !rooms.some(room => room.id === roomId);
-            if (isUnique) break;
-          } catch (error) {
-            console.error('Error checking room ID uniqueness:', error);
-            break; // Assume unique if we can't check
-          }
-        } while (attempts < maxAttempts);
+        set({ 
+          currentRoom: room, 
+          roomStatus: 'waiting',
+          currentUser: joinedUser 
+        });
+      } else {
+        throw new Error(response.error || 'Failed to join room');
+      }
+    } catch (error) {
+      console.error('Error joining room:', error);
+      throw error;
+    }
+  },
+  
+  leaveRoom: () => {
+    set({ currentRoom: null, roomStatus: 'waiting', currentUser: null });
+  },
+  
+  updateRoom: async (updates: Partial<Room>) => {
+    const currentRoom = get().currentRoom;
+    if (currentRoom) {
+      try {
+        const response = await apiClient.updateRoom(currentRoom.roomCode, updates);
         
-        if (attempts >= maxAttempts) {
-          throw new Error('Failed to generate unique room ID. Please try again.');
+        if (response.success && response.data) {
+          set({ currentRoom: response.data as Room });
         }
+      } catch (error) {
+        console.error('Error updating room:', error);
+        // Update local state anyway for optimistic updates
+        set({
+          currentRoom: { ...currentRoom, ...updates }
+        });
+      }
+    }
+  },
+  
+  addUser: (user: User) => {
+    const currentRoom = get().currentRoom;
+    if (currentRoom) {
+      set({
+        currentRoom: {
+          ...currentRoom,
+          users: [...currentRoom.users, user]
+        }
+      });
+    }
+  },
+  
+  removeUser: async (userId: string) => {
+    try {
+      await apiClient.removeUser(userId);
+      
+      const currentRoom = get().currentRoom;
+      if (currentRoom) {
+        set({
+          currentRoom: {
+            ...currentRoom,
+            users: currentRoom.users.filter(u => u.id !== userId)
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error removing user:', error);
+    }
+  },
+  
+  updateUser: async (userId: string, updates: Partial<User>) => {
+    try {
+      await apiClient.updateUser(userId, updates);
+      
+      const currentRoom = get().currentRoom;
+      if (currentRoom) {
+        set({
+          currentRoom: {
+            ...currentRoom,
+            users: currentRoom.users.map(u => 
+              u.id === userId ? { ...u, ...updates } : u
+            )
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  },
+  
+  setCurrentUser: (user: User) => {
+    set({ currentUser: user });
+  },
+  
+  addStory: async (story: Omit<Story, 'id' | 'createdAt'>) => {
+    const currentRoom = get().currentRoom;
+    if (currentRoom) {
+      try {
+        const response = await apiClient.createStory(currentRoom.roomCode, story);
         
-        console.log(`Creating room with ID: ${roomId}`);
-        
-        const room: Room = {
-          id: roomId,
-          roomCode: roomId, // Use the same ID as room code for localStorage version
-          name,
-          hostId: hostUser.id,
-          users: [{ ...hostUser, isHost: true }],
-          stories: [],
-          votingSystem,
-          isVotingRevealed: false,
-          createdAt: new Date(),
+        if (response.success && response.data) {
+          const newStory = response.data as Story;
+          
+          set({
+            currentRoom: {
+              ...currentRoom,
+              stories: [...currentRoom.stories, newStory]
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error adding story:', error);
+      }
+    }
+  },
+  
+  addStoryFromWebRTC: (story: Story) => {
+    const currentRoom = get().currentRoom;
+    if (currentRoom) {
+      // Check if story already exists to avoid duplicates
+      const storyExists = currentRoom.stories.some(s => s.id === story.id);
+      if (!storyExists) {
+        set({
+          currentRoom: {
+            ...currentRoom,
+            stories: [...currentRoom.stories, story]
+          }
+        });
+      }
+    }
+  },
+  
+  updateStory: async (storyId: string, updates: Partial<Story>) => {
+    try {
+      await apiClient.updateStory(storyId, updates);
+      
+      const currentRoom = get().currentRoom;
+      if (currentRoom) {
+        set({
+          currentRoom: {
+            ...currentRoom,
+            stories: currentRoom.stories.map(s =>
+              s.id === storyId ? { ...s, ...updates } : s
+            )
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error updating story:', error);
+    }
+  },
+  
+  removeStory: async (storyId: string) => {
+    try {
+      await apiClient.deleteStory(storyId);
+      
+      const currentRoom = get().currentRoom;
+      if (currentRoom) {
+        set({
+          currentRoom: {
+            ...currentRoom,
+            stories: currentRoom.stories.filter(s => s.id !== storyId)
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error removing story:', error);
+    }
+  },
+  
+  setCurrentStory: async (storyId: string) => {
+    try {
+      await apiClient.updateStory(storyId, { isActive: true });
+      
+      const currentRoom = get().currentRoom;
+      if (currentRoom) {
+        const updatedRoom = {
+          ...currentRoom,
+          currentStoryId: storyId,
+          stories: currentRoom.stories.map(s => ({
+            ...s,
+            isActive: s.id === storyId
+          }))
         };
         
-        // Store room in localStorage for demo purposes
-        try {
-          const storedRooms = localStorage.getItem('demo-rooms');
-          const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-          
-          // Add new room to stored rooms
-          rooms.push(room);
-          
-          // Keep only the last 20 rooms to avoid localStorage bloat (increased from 10)
-          const recentRooms = rooms.slice(-20);
-          localStorage.setItem('demo-rooms', JSON.stringify(recentRooms));
-          
-          console.log(`Room ${roomId} created and stored. Total rooms: ${recentRooms.length}`);
-        } catch (error) {
-          console.error('Error storing room:', error);
-          throw new Error('Failed to store room. Please try again.');
-        }
-        
-        set({ currentRoom: room, roomStatus: 'waiting' });
-        return room;
-      },
-
-      // Simulate other users joining the room (for demo purposes)
-      simulateUserJoin: (user: User) => {
-        const { addUser } = get();
-        addUser(user);
-      },
+        set({
+          currentRoom: updatedRoom,
+          roomStatus: 'voting'
+        });
+      }
+    } catch (error) {
+      console.error('Error setting current story:', error);
+    }
+  },
+  
+  castVote: async (userId: string, vote: string) => {
+    try {
+      await apiClient.castVote(userId, vote);
       
-      joinRoom: (roomId: string, user: User) => {
-        const currentRoom = get().currentRoom;
-        
-        // Normalize room ID to uppercase
-        const normalizedRoomId = roomId.toUpperCase().trim();
-        
-        console.log(`Attempting to join room: ${normalizedRoomId}`);
-        
-        // If there's already a room with the same ID, add user to it
-        if (currentRoom && currentRoom.id === normalizedRoomId) {
-          // Check if user is already in the room
-          const userExists = currentRoom.users.some(u => u.id === user.id);
-          if (!userExists) {
-            const updatedRoom = {
-              ...currentRoom,
-              users: [...currentRoom.users, { ...user, isHost: false }] // Joining users are never hosts
-            };
-            set({ currentRoom: updatedRoom });
-            
-            // Update stored room in localStorage
-            try {
-              const storedRooms = localStorage.getItem('demo-rooms');
-              const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-              const updatedRooms = rooms.map(room => 
-                room.id === normalizedRoomId ? updatedRoom : room
-              );
-              localStorage.setItem('demo-rooms', JSON.stringify(updatedRooms));
-            } catch (error) {
-              console.error('Error updating stored room:', error);
-            }
-          }
-          console.log(`Successfully joined existing room: ${normalizedRoomId}`);
-          return; // Successfully joined existing room
-        }
-        
-        // For demo purposes, we'll check if there are any rooms stored in localStorage
-        // that match the room code. In a real app, this would be a server call.
-        try {
-          const storedRooms = localStorage.getItem('demo-rooms');
-          console.log('Stored rooms:', storedRooms);
-          
-          const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-          console.log(`Looking for room ${normalizedRoomId} in ${rooms.length} stored rooms:`, rooms.map(r => r.id));
-          
-          // Try exact match first
-          let existingRoom = rooms.find(room => room.id === normalizedRoomId);
-          
-          // If not found, try case-insensitive search
-          if (!existingRoom) {
-            existingRoom = rooms.find(room => room.id.toUpperCase() === normalizedRoomId);
-          }
-          
-          if (existingRoom) {
-            console.log(`Found room: ${existingRoom.id}`);
-            
-            // Check if user is already in the room
-            const userExists = existingRoom.users.some(u => u.id === user.id || u.name === user.name);
-            if (!userExists) {
-              // Add user to existing room
-              const updatedRoom = {
-                ...existingRoom,
-                users: [...existingRoom.users, { ...user, isHost: false }]
-              };
-              
-              // Update the room in localStorage
-              const updatedRooms = rooms.map(room => 
-                room.id === existingRoom!.id ? updatedRoom : room
-              );
-              localStorage.setItem('demo-rooms', JSON.stringify(updatedRooms));
-              
-              set({ currentRoom: updatedRoom, roomStatus: 'waiting' });
-              console.log(`Successfully joined room: ${normalizedRoomId}`);
-              return; // Successfully joined existing room
-            } else {
-              // User already in room, just set as current room
-              set({ currentRoom: existingRoom, roomStatus: 'waiting' });
-              console.log(`User already in room: ${normalizedRoomId}`);
-              return;
-            }
-          } else {
-            console.log(`Room ${normalizedRoomId} not found in stored rooms`);
-          }
-        } catch (error) {
-          console.error('Error checking for existing rooms:', error);
-        }
-        
-        // If no existing room found, provide detailed error message
-        const errorMessage = `Room with code "${normalizedRoomId}" not found. This could happen if:
-• The room code was entered incorrectly
-• The room was created in a different browser or incognito window
-• The room was created more than 10 sessions ago (demo limitation)
-• Local storage was cleared
-
-Please verify the room code with the room creator and try again.`;
-        
-        console.error(errorMessage);
-        throw new Error(errorMessage);
-      },
-      
-      leaveRoom: () => {
-        set({ currentRoom: null, roomStatus: 'waiting' });
-      },
-      
-      updateRoom: (updates: Partial<Room>) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          set({
-            currentRoom: { ...currentRoom, ...updates }
-          });
-        }
-      },
-      
-      addUser: (user: User) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          const updatedRoom = {
-            ...currentRoom,
-            users: [...currentRoom.users, user]
-          };
-          
-          set({ currentRoom: updatedRoom });
-          
-          // Update stored room in localStorage
-          try {
-            const storedRooms = localStorage.getItem('demo-rooms');
-            const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-            const updatedRooms = rooms.map(room => 
-              room.id === currentRoom.id ? updatedRoom : room
-            );
-            localStorage.setItem('demo-rooms', JSON.stringify(updatedRooms));
-          } catch (error) {
-            console.error('Error updating stored room:', error);
-          }
-        }
-      },
-      
-      removeUser: (userId: string) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          set({
-            currentRoom: {
-              ...currentRoom,
-              users: currentRoom.users.filter(u => u.id !== userId)
-            }
-          });
-        }
-      },
-      
-      updateUser: (userId: string, updates: Partial<User>) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          set({
-            currentRoom: {
-              ...currentRoom,
-              users: currentRoom.users.map(u => 
-                u.id === userId ? { ...u, ...updates } : u
-              )
-            }
-          });
-        }
-      },
-      
-      addStory: (story: Omit<Story, 'id' | 'createdAt'>) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          const newStory: Story = {
-            ...story,
-            id: Math.random().toString(36).substring(2, 9),
-            createdAt: new Date(),
-          };
-          
-          const updatedRoom = {
-            ...currentRoom,
-            stories: [...currentRoom.stories, newStory]
-          };
-          
-          set({ currentRoom: updatedRoom });
-          
-          // Update stored room in localStorage
-          try {
-            const storedRooms = localStorage.getItem('demo-rooms');
-            const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-            const updatedRooms = rooms.map(room => 
-              room.id === currentRoom.id ? updatedRoom : room
-            );
-            localStorage.setItem('demo-rooms', JSON.stringify(updatedRooms));
-          } catch (error) {
-            console.error('Error updating stored room:', error);
-          }
-        }
-      },
-      
-      addStoryFromWebRTC: (story: Story) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          // Check if story already exists to avoid duplicates
-          const storyExists = currentRoom.stories.some(s => s.id === story.id);
-          if (!storyExists) {
-            const updatedRoom = {
-              ...currentRoom,
-              stories: [...currentRoom.stories, story]
-            };
-            
-            set({ currentRoom: updatedRoom });
-            
-            // Update stored room in localStorage
-            try {
-              const storedRooms = localStorage.getItem('demo-rooms');
-              const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-              const updatedRooms = rooms.map(room => 
-                room.id === currentRoom.id ? updatedRoom : room
-              );
-              localStorage.setItem('demo-rooms', JSON.stringify(updatedRooms));
-            } catch (error) {
-              console.error('Error updating stored room:', error);
-            }
-          }
-        }
-      },
-      
-      updateStory: (storyId: string, updates: Partial<Story>) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          set({
-            currentRoom: {
-              ...currentRoom,
-              stories: currentRoom.stories.map(s =>
-                s.id === storyId ? { ...s, ...updates } : s
-              )
-            }
-          });
-        }
-      },
-      
-      removeStory: (storyId: string) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          set({
-            currentRoom: {
-              ...currentRoom,
-              stories: currentRoom.stories.filter(s => s.id !== storyId)
-            }
-          });
-        }
-      },
-      
-      setCurrentStory: (storyId: string) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          set({
-            currentRoom: {
-              ...currentRoom,
-              currentStoryId: storyId,
-              stories: currentRoom.stories.map(s => ({
-                ...s,
-                isActive: s.id === storyId
-              }))
-            },
-            roomStatus: 'voting'
-          });
-        }
-      },
-      
-      castVote: (userId: string, vote: string) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom && !currentRoom.isVotingRevealed) {
-          const updatedRoom = {
+      const currentRoom = get().currentRoom;
+      if (currentRoom && !currentRoom.isVotingRevealed) {
+        set({
+          currentRoom: {
             ...currentRoom,
             users: currentRoom.users.map(u =>
               u.id === userId ? { ...u, vote, hasVoted: true } : u
             )
-          };
-          
-          set({ currentRoom: updatedRoom });
-          
-          // Update stored room in localStorage
-          try {
-            const storedRooms = localStorage.getItem('demo-rooms');
-            const rooms: Room[] = storedRooms ? JSON.parse(storedRooms) : [];
-            const updatedRooms = rooms.map(room => 
-              room.id === currentRoom.id ? updatedRoom : room
-            );
-            localStorage.setItem('demo-rooms', JSON.stringify(updatedRooms));
-          } catch (error) {
-            console.error('Error updating stored room:', error);
           }
-        }
-      },
-      
-      revealVotes: () => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          set({
-            currentRoom: {
-              ...currentRoom,
-              isVotingRevealed: true
-            },
-            roomStatus: 'revealed'
-          });
-        }
-      },
-      
-      clearVotes: () => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          set({
-            currentRoom: {
-              ...currentRoom,
-              isVotingRevealed: false,
-              users: currentRoom.users.map(u => ({
-                ...u,
-                vote: undefined,
-                hasVoted: false
-              }))
-            },
-            roomStatus: 'voting'
-          });
-        }
-      },
-      
-      setRoomStatus: (status: RoomStatus) => {
-        set({ roomStatus: status });
-      },
-    }),
-    {
-      name: 'room-storage',
+        });
+      }
+    } catch (error) {
+      console.error('Error casting vote:', error);
     }
-  )
-);
+  },
+  
+  revealVotes: async () => {
+    const currentRoom = get().currentRoom;
+    if (currentRoom) {
+      try {
+        await apiClient.revealVotes(currentRoom.roomCode);
+        
+        set({
+          currentRoom: {
+            ...currentRoom,
+            isVotingRevealed: true
+          },
+          roomStatus: 'revealed'
+        });
+      } catch (error) {
+        console.error('Error revealing votes:', error);
+      }
+    }
+  },
+  
+  clearVotes: async () => {
+    const currentRoom = get().currentRoom;
+    if (currentRoom) {
+      try {
+        await apiClient.clearVotes(currentRoom.roomCode);
+        
+        set({
+          currentRoom: {
+            ...currentRoom,
+            isVotingRevealed: false,
+            users: currentRoom.users.map(u => ({
+              ...u,
+              vote: undefined,
+              hasVoted: false
+            }))
+          },
+          roomStatus: 'voting'
+        });
+      } catch (error) {
+        console.error('Error clearing votes:', error);
+      }
+    }
+  },
+  
+  setRoomStatus: (status: RoomStatus) => {
+    set({ roomStatus: status });
+  },
+  
+  refreshRoom: async () => {
+    const currentRoom = get().currentRoom;
+    if (currentRoom) {
+      try {
+        const response = await apiClient.getRoom(currentRoom.roomCode);
+        
+        if (response.success && response.data) {
+          set({ currentRoom: response.data as Room });
+        }
+      } catch (error) {
+        console.error('Error refreshing room:', error);
+      }
+    }
+  },
+}));
