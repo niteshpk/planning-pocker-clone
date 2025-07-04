@@ -68,6 +68,7 @@ export const useRoomStore = create<RoomState>()(
         
         const room: Room = {
           id: roomId,
+          roomCode: roomId, // Use the same ID as room code for localStorage version
           name,
           hostId: hostUser.id,
           users: [{ ...hostUser, isHost: true }],

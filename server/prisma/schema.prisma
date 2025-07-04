@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Room {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  roomCode          String   @unique
+  name              String
+  hostId            String
+  isVotingRevealed  Boolean  @default(false)
+  currentStoryId    String?
+  votingSystemName  String   @default("Fibonacci")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  users   User[]
+  stories Story[]
+
+  @@map("rooms")
+}
+
+model User {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  isHost      Boolean @default(false)
+  isConnected Boolean @default(true)
+  vote        String?
+  hasVoted    Boolean @default(false)
+  roomId      String  @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("users")
+}
+
+model Story {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  estimate    String?
+  isActive    Boolean  @default(false)
+  roomId      String   @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("stories")
+}
+
+model VotingSystem {
+  id     String   @id @default(auto()) @map("_id") @db.ObjectId
+  name   String   @unique
+  values String[]
+
+  @@map("voting_systems")
+}

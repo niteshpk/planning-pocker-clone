@@ -18,12 +18,14 @@ export interface Story {
 
 export interface Room {
   id: string;
+  roomCode: string; // Added roomCode property
   name: string;
   hostId: string;
   users: User[];
   stories: Story[];
   currentStoryId?: string;
   votingSystem: VotingSystem;
+  votingSystemName?: string; // Added for API compatibility
   isVotingRevealed: boolean;
   createdAt: Date;
 }
