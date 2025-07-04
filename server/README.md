@@ -59,7 +59,7 @@ Start the development server:
 npm run dev
 ```
 
-The API will be available at `http://localhost:3001`
+The API will be available at `http://localhost:3000`
 
 ### Production
 

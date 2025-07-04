@@ -1,7 +1,7 @@
 // API client for the Planning Poker frontend
 // This file should be copied to the client/src/lib/ directory
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export interface ApiResponse<T = any> {
   success: boolean;

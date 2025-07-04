@@ -30,29 +30,27 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Failed to generate unique room code. Please try again.', 500);
     }
 
-    // Create room with host user
+    // Create room first
     const room = await prisma.room.create({
       data: {
         roomCode,
         name,
         hostId: '', // Will be updated after user creation
         votingSystemName: votingSystem,
-        users: {
-          create: {
-            name: hostName,
-            isHost: true,
-            isConnected: true,
-          }
-        }
-      },
-      include: {
-        users: true,
-        stories: true,
+      }
+    });
+
+    // Create host user separately
+    const hostUser = await prisma.user.create({
+      data: {
+        name: hostName,
+        isHost: true,
+        isConnected: true,
+        roomId: room.id,
       }
     });
 
     // Update room with host ID
-    const hostUser = room.users[0];
     const updatedRoom = await prisma.room.update({
       where: { id: room.id },
       data: { hostId: hostUser.id },

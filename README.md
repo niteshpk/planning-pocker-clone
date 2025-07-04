@@ -74,7 +74,7 @@ npm run db:push
 npm run dev
 ```
 
-The API will be available at `http://localhost:3001`
+The API will be available at `http://localhost:3000`
 
 ### 2. Start the Frontend
 
@@ -86,7 +86,7 @@ cd client
 npm install
 
 # Set up environment variables
-echo "VITE_API_URL=http://localhost:3001/api" > .env
+echo "VITE_API_URL=http://localhost:3000/api" > .env
 
 # Start development server
 npm run dev
@@ -140,13 +140,13 @@ npm run db:push     # Push schema changes
 
 ### Client (.env)
 ```
-VITE_API_URL=http://localhost:3001/api
+VITE_API_URL=http://localhost:3000/api
 ```
 
 ### Server (.env)
 ```
 DATABASE_URL="mongodb://localhost:27017/planning-poker"
-NEXTAUTH_URL="http://localhost:3001"
+NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-secret-key"
 ALLOWED_ORIGINS="http://localhost:5173,http://localhost:3000"
 ```
