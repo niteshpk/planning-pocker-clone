@@ -8,27 +8,30 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:studio": "prisma studio",
     "db:seed": "node scripts/seed.js"
   },
-  "keywords": ["planning-poker", "api", "nextjs", "prisma", "mongodb"],
+  "keywords": [
+    "planning-poker",
+    "api",
+    "nextjs",
+    "mysql"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^5.19.1",
     "@types/cors": "^2.8.17",
     "@types/node": "^22.5.4",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "mongodb": "^6.8.0",
+    "mysql2": "^3.6.5",
     "next": "^14.2.7",
-    "prisma": "^5.19.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }

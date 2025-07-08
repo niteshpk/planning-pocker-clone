@@ -4,7 +4,6 @@ import {
   Plus, 
   Eye, 
   RotateCcw, 
-  Settings, 
   LogOut,
   Users,
   Clock
@@ -13,7 +12,6 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { VotingDeck } from '../components/VotingCard';
 import { UserList } from '../components/UserAvatar';
-import { useUserStore } from '../stores/userStore';
 import { useRoomStore } from '../stores/roomStore';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { copyToClipboard, calculateConsensus } from '../utils/helpers';
@@ -26,13 +24,12 @@ interface RoomPageProps {
 export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
   const [showAddStory, setShowAddStory] = useState(false);
   const [newStory, setNewStory] = useState({ title: '', description: '' });
-  const [showSettings, setShowSettings] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
-  const { currentUser } = useUserStore();
   const { 
     currentRoom, 
     roomStatus,
+    currentUser: roomCurrentUser,
     addStory, 
     setCurrentStory, 
     castVote, 
@@ -48,9 +45,9 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
     broadcastStoryAdded 
   } = useWebRTC();
 
-  const isHost = currentUser?.isHost || false;
+  const isHost = roomCurrentUser?.isHost || false;
   const currentStory = currentRoom?.stories.find(s => s.isActive);
-  const hasVoted = currentUser?.hasVoted || false;
+  const hasVoted = roomCurrentUser?.hasVoted || false;
   const allVoted = currentRoom?.users.every(u => u.hasVoted) || false;
 
   useEffect(() => {
@@ -79,7 +76,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
       addStory(storyData);
       
       // Only the host broadcasts new stories
-      if (currentUser?.isHost) {
+      if (roomCurrentUser?.isHost) {
         // Create the story object for broadcast (this should match what the store creates)
         const newStoryForBroadcast: Story = {
           ...storyData,
@@ -95,8 +92,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
   };
 
   const handleVote = (vote: string) => {
-    if (currentUser && !currentRoom?.isVotingRevealed) {
-      castVote(currentUser.id, vote);
+    if (roomCurrentUser && !currentRoom?.isVotingRevealed) {
+      castVote(roomCurrentUser.id, vote);
       // Broadcast the vote to all participants
       broadcastVote(vote);
     }
@@ -122,8 +119,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
     }
   };
 
-  const handleLeaveRoom = () => {
-    leaveRoom();
+  const handleLeaveRoom = async () => {
+    await leaveRoom();
     onLeaveRoom();
   };
 
@@ -156,7 +153,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
 
   const voteResults = getVoteResults();
 
-  if (!currentRoom || !currentUser) {
+  if (!currentRoom || !roomCurrentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -180,7 +177,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">Room:</span>
                 <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
-                  {currentRoom.id}
+                  {currentRoom.roomCode}
                 </code>
                 <Button
                   variant="ghost"
@@ -195,14 +192,14 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
             </div>
             
             <div className="flex items-center space-x-2">
-              <Button
+              {/* <Button
                 variant="ghost"
                 size="sm"
                 icon={Settings}
                 onClick={() => setShowSettings(!showSettings)}
               >
                 Settings
-              </Button>
+              </Button> */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -313,7 +310,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
                 </h3>
                 <VotingDeck
                   values={currentRoom.votingSystem.values}
-                  selectedValue={currentUser.vote}
+                  selectedValue={roomCurrentUser.vote}
                   onVote={handleVote}
                   disabled={hasVoted}
                   isRevealed={currentRoom.isVotingRevealed}

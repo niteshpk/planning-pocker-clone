@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getConnection } from '@/lib/db';
+import { Room, Story } from '@/models';
 import { createSuccessResponse, createErrorResponse, validateRoomCode } from '@/utils/api';
 import { CreateStoryRequest } from '@/types/api';
 
@@ -8,6 +9,8 @@ export async function POST(
   context: { params: Promise<{ roomCode: string }> }
 ) {
   try {
+    await getConnection();
+    
     const { roomCode } = await context.params;
     const body: CreateStoryRequest = await request.json();
     const { title, description } = body;
@@ -20,23 +23,28 @@ export async function POST(
       return createErrorResponse('Story title is required', 400);
     }
 
-    const room = await prisma.room.findUnique({
-      where: { roomCode: roomCode.toUpperCase() }
-    });
+    const room = await Room.findByRoomCode(roomCode.toUpperCase());
 
     if (!room) {
       return createErrorResponse('Room not found', 404);
     }
 
-    const story = await prisma.story.create({
-      data: {
-        title: title.trim(),
-        description: description?.trim(),
-        roomId: room.id
-      }
+    const story = await Story.create({
+      title: title.trim(),
+      description: description?.trim(),
+      is_active: false,
+      room_id: room.id!
     });
 
-    return createSuccessResponse(story, 'Story created successfully', 201);
+    // Transform the response to match the expected format
+    const storyResponse = {
+      ...story,
+      id: story.id!.toString(),
+      isActive: story.is_active,
+      roomId: story.room_id
+    };
+
+    return createSuccessResponse(storyResponse, 'Story created successfully', 201);
   } catch (error) {
     console.error('Error creating story:', error);
     return createErrorResponse('Failed to create story', 500);

@@ -1,12 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { useUserStore } from '../stores/userStore';
 import { useRoomStore } from '../stores/roomStore';
 import { getWebRTCManager, resetWebRTCManager } from '../utils/webrtc';
 import { WebRTCMessage, Story } from '../types';
 
 export const useWebRTC = () => {
-  const { currentUser } = useUserStore();
-  const { currentRoom, addUser, removeUser, castVote, revealVotes, addStoryFromWebRTC } = useRoomStore();
+  const { currentUser, currentRoom, addUser, removeUser, castVote, revealVotes, addStoryFromWebRTC } = useRoomStore();
   const webRTCManagerRef = useRef<ReturnType<typeof getWebRTCManager> | null>(null);
 
   useEffect(() => {

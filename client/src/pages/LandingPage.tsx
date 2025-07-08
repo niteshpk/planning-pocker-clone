@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Plus, Users, Zap, AlertCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { useUserStore } from '../stores/userStore';
 import { useRoomStore } from '../stores/roomStore';
 import { generateUserId, validateRoomCode } from '../utils/helpers';
 
@@ -27,7 +26,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
-  const { setCurrentUser } = useUserStore();
+  const { setCurrentUser } = useRoomStore();
   const { createRoom, joinRoom } = useRoomStore();
 
 
@@ -224,9 +223,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 label="Room Code"
                 value={formData.roomCode}
                 onChange={(e) => setFormData({ ...formData, roomCode: e.target.value.toUpperCase() })}
-                placeholder="Enter 6-character room code"
+                placeholder="Enter room code"
                 error={errors.roomCode}
-                maxLength={6}
                 required
               />
             )}
@@ -244,7 +242,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <div>
                     <p className="font-medium">Can't find the room?</p>
                     <ul className="mt-1 text-xs space-y-1">
-                      <li>• Make sure the room code is correct (6 characters)</li>
+                      <li>• Make sure the room code is correct</li>
                       <li>• Ask the room creator for the correct code</li>
                       <li>• The room must be active and accessible</li>
                     </ul>

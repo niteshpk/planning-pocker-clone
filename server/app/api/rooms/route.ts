@@ -1,10 +1,17 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getConnection } from '@/lib/db';
+import { Room, User } from '@/models';
 import { createSuccessResponse, createErrorResponse, generateRoomCode } from '@/utils/api';
 import { CreateRoomRequest } from '@/types/api';
+import { getVotingSystemByName, getDefaultVotingSystem } from '@/utils/voting-systems';
 
 export async function POST(request: NextRequest) {
   try {
+    const connection = await getConnection();
+    if (!connection) {
+      return createErrorResponse('Database not available in development mode', 503);
+    }
+    
     const body: CreateRoomRequest = await request.json();
     const { name, hostName, votingSystem = 'Fibonacci' } = body;
 
@@ -19,9 +26,7 @@ export async function POST(request: NextRequest) {
 
     do {
       roomCode = generateRoomCode();
-      const existingRoom = await prisma.room.findUnique({
-        where: { roomCode }
-      });
+      const existingRoom = await Room.findByRoomCode(roomCode);
       if (!existingRoom) break;
       attempts++;
     } while (attempts < maxAttempts);
@@ -31,36 +36,42 @@ export async function POST(request: NextRequest) {
     }
 
     // Create room first
-    const room = await prisma.room.create({
-      data: {
-        roomCode,
-        name,
-        hostId: '', // Will be updated after user creation
-        votingSystemName: votingSystem,
-      }
+    const room = await Room.create({
+      room_code: roomCode,
+      name,
+      host_id: undefined, // Will be updated after user creation
+      is_voting_revealed: false,
+      voting_system_name: votingSystem,
     });
 
     // Create host user separately
-    const hostUser = await prisma.user.create({
-      data: {
-        name: hostName,
-        isHost: true,
-        isConnected: true,
-        roomId: room.id,
-      }
+    const hostUser = await User.create({
+      name: hostName,
+      is_host: true,
+      is_connected: true,
+      has_voted: false,
+      room_id: room.id!,
     });
 
     // Update room with host ID
-    const updatedRoom = await prisma.room.update({
-      where: { id: room.id },
-      data: { hostId: hostUser.id },
-      include: {
-        users: true,
-        stories: true,
-      }
-    });
+    const updatedRoom = await Room.update(roomCode, { host_id: hostUser.id });
 
-    return createSuccessResponse(updatedRoom, 'Room created successfully', 201);
+    // Get the voting system object
+    const votingSystemData = getVotingSystemByName(updatedRoom!.voting_system_name) || getDefaultVotingSystem();
+
+    // Add the voting system object to the response
+    const roomWithVotingSystem = {
+      ...updatedRoom,
+      id: updatedRoom!.id!.toString(),
+      roomCode: updatedRoom!.room_code,
+      hostId: updatedRoom!.host_id,
+      isVotingRevealed: updatedRoom!.is_voting_revealed,
+      currentStoryId: updatedRoom!.current_story_id,
+      votingSystemName: updatedRoom!.voting_system_name,
+      votingSystem: votingSystemData
+    };
+
+    return createSuccessResponse(roomWithVotingSystem, 'Room created successfully', 201);
   } catch (error) {
     console.error('Error creating room:', error);
     return createErrorResponse('Failed to create room', 500);

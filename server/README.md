@@ -100,7 +100,7 @@ npm start
 
 ### Room
 - `id`: Unique identifier
-- `roomCode`: 6-character room code
+- `roomCode`: room code
 - `name`: Room name
 - `hostId`: Host user ID
 - `isVotingRevealed`: Whether votes are revealed
@@ -165,3 +165,12 @@ await apiClient.castVote(userId, '5');
 - `NEXTAUTH_URL` - Application URL (for production)
 - `NEXTAUTH_SECRET` - Secret for authentication (if needed)
 - `ALLOWED_ORIGINS` - CORS allowed origins
+
+
+
+docker compose up -d
+docker exec -it mongo-rs mongosh
+rs.initiate({
+  _id: "rs0",
+  members: [{ _id: 0, host: "mongo:27017" }]
+})

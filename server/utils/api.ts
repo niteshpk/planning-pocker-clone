@@ -35,7 +35,13 @@ export function createSuccessResponse<T>(
 }
 
 export function generateRoomCode(): string {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Generate a 6-character room code using crypto for better randomness
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 export function validateRoomCode(code: string): boolean {
