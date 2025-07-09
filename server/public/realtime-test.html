@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Poker Real-time Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .event-log {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f9f9f9;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .event-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #e8f4f8;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        .event-timestamp {
+            color: #666;
+            font-size: 11px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .status.disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+        .room-info {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .stories-list {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .story-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .story-item:last-child {
+            border-bottom: none;
+        }
+        .users-list {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .user-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-item:last-child {
+            border-bottom: none;
+        }
+        .vote-badge {
+            background-color: #2196F3;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1976D2;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Planning Poker Real-time Test</h1>
+    <p>Room Code: <strong id="roomCode">CJLRP0</strong> | 
+       Connection Status: <span id="connectionStatus" class="status disconnected">Disconnected</span>
+    </p>
+
+    <div class="container">
+        <div class="panel">
+            <h2>Room State</h2>
+            <div id="roomInfo" class="room-info">
+                <div>Loading room information...</div>
+            </div>
+
+            <h3>Stories</h3>
+            <div id="storiesList" class="stories-list">
+                <div style="padding: 20px; text-align: center; color: #666;">No stories yet</div>
+            </div>
+
+            <h4>Add New Story</h4>
+            <input type="text" id="storyTitle" placeholder="Story title">
+            <input type="text" id="storyDescription" placeholder="Story description (optional)">
+            <button onclick="addStory()">Add Story</button>
+
+            <h3>Users</h3>
+            <div id="usersList" class="users-list">
+                <div style="padding: 20px; text-align: center; color: #666;">No users</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Real-time Events</h2>
+            <div id="eventLog" class="event-log">
+                <div style="padding: 20px; text-align: center; color: #666;">Connecting to event stream...</div>
+            </div>
+            <button onclick="clearEvents()">Clear Events</button>
+            <button onclick="reconnect()">Reconnect</button>
+        </div>
+    </div>
+
+    <script>
+        const roomCode = 'CJLRP0';
+        const apiBase = 'http://localhost:3000/api';
+        let eventSource = null;
+        let roomData = null;
+
+        // Initialize the application
+        async function init() {
+            await loadRoomState();
+            connectToEventStream();
+        }
+
+        // Load initial room state
+        async function loadRoomState() {
+            try {
+                const response = await fetch(`${apiBase}/rooms/${roomCode}/state`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    roomData = result.data;
+                    updateRoomDisplay();
+                } else {
+                    logEvent('error', 'Failed to load room state: ' + result.error);
+                }
+            } catch (error) {
+                logEvent('error', 'Error loading room state: ' + error.message);
+            }
+        }
+
+        // Connect to Server-Sent Events stream
+        function connectToEventStream() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource(`${apiBase}/rooms/${roomCode}/events`);
+
+            eventSource.onopen = function(event) {
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                document.getElementById('connectionStatus').className = 'status connected';
+                logEvent('connection', 'Connected to event stream');
+            };
+
+            eventSource.onmessage = function(event) {
+                logEvent('message', 'Received: ' + event.data);
+            };
+
+            eventSource.addEventListener('connected', function(event) {
+                const data = JSON.parse(event.data);
+                logEvent('connected', `Connected to room ${data.roomCode}`);
+            });
+
+            eventSource.addEventListener('story.created', function(event) {
+                const data = JSON.parse(event.data);
+                logEvent('story.created', `New story: "${data.story.title}"`);
+                // Reload room state to get updated stories
+                loadRoomState();
+            });
+
+            eventSource.addEventListener('story.updated', function(event) {
+                const data = JSON.parse(event.data);
+                logEvent('story.updated', `Story updated: "${data.story.title}"`);
+                loadRoomState();
+            });
+
+            eventSource.addEventListener('room.updated', function(event) {
+                const data = JSON.parse(event.data);
+                logEvent('room.updated', `Room updated (${data.updateType})`);
+                loadRoomState();
+            });
+
+            eventSource.addEventListener('user.voted', function(event) {
+                const data = JSON.parse(event.data);
+                logEvent('user.voted', `${data.user.name} ${data.user.hasVoted ? 'voted' : 'cleared vote'}`);
+                loadRoomState();
+            });
+
+            eventSource.addEventListener('heartbeat', function(event) {
+                logEvent('heartbeat', 'Connection alive');
+            });
+
+            eventSource.onerror = function(event) {
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                document.getElementById('connectionStatus').className = 'status disconnected';
+                logEvent('error', 'Connection error or closed');
+            };
+        }
+
+        // Update room display
+        function updateRoomDisplay() {
+            if (!roomData) return;
+
+            // Update room info
+            document.getElementById('roomInfo').innerHTML = `
+                <strong>${roomData.name}</strong><br>
+                Host: ${roomData.users.find(u => u.isHost)?.name || 'Unknown'}<br>
+                Voting System: ${roomData.votingSystemName}<br>
+                Voting Revealed: ${roomData.isVotingRevealed ? 'Yes' : 'No'}
+            `;
+
+            // Update stories list
+            const storiesList = document.getElementById('storiesList');
+            if (roomData.stories.length === 0) {
+                storiesList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No stories yet</div>';
+            } else {
+                storiesList.innerHTML = roomData.stories.map(story => `
+                    <div class="story-item">
+                        <strong>${story.title}</strong>
+                        ${story.description ? `<br><small>${story.description}</small>` : ''}
+                        ${story.estimate ? `<br><span class="vote-badge">Estimate: ${story.estimate}</span>` : ''}
+                    </div>
+                `).join('');
+            }
+
+            // Update users list
+            const usersList = document.getElementById('usersList');
+            if (roomData.users.length === 0) {
+                usersList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No users</div>';
+            } else {
+                usersList.innerHTML = roomData.users.map(user => `
+                    <div class="user-item">
+                        <span>${user.name} ${user.isHost ? '(Host)' : ''}</span>
+                        <span>
+                            ${user.hasVoted ? '<span class="vote-badge">Voted</span>' : ''}
+                            ${!user.isConnected ? '<span style="color: #999;">(Offline)</span>' : ''}
+                        </span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Add a new story
+        async function addStory() {
+            const title = document.getElementById('storyTitle').value.trim();
+            const description = document.getElementById('storyDescription').value.trim();
+
+            if (!title) {
+                alert('Please enter a story title');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiBase}/rooms/${roomCode}/stories`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        description: description || undefined
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('storyTitle').value = '';
+                    document.getElementById('storyDescription').value = '';
+                    logEvent('action', `Added story: "${title}"`);
+                } else {
+                    logEvent('error', 'Failed to add story: ' + result.error);
+                }
+            } catch (error) {
+                logEvent('error', 'Error adding story: ' + error.message);
+            }
+        }
+
+        // Log an event to the event log
+        function logEvent(type, message) {
+            const eventLog = document.getElementById('eventLog');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const eventItem = document.createElement('div');
+            eventItem.className = 'event-item';
+            eventItem.innerHTML = `
+                <div><strong>[${type.toUpperCase()}]</strong> ${message}</div>
+                <div class="event-timestamp">${timestamp}</div>
+            `;
+            
+            eventLog.appendChild(eventItem);
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+
+        // Clear events log
+        function clearEvents() {
+            document.getElementById('eventLog').innerHTML = '';
+        }
+
+        // Reconnect to event stream
+        function reconnect() {
+            logEvent('action', 'Reconnecting...');
+            connectToEventStream();
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>

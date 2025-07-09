@@ -6,7 +6,8 @@ import {
   RotateCcw, 
   LogOut,
   Users,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -14,6 +15,7 @@ import { VotingDeck } from '../components/VotingCard';
 import { UserList } from '../components/UserAvatar';
 import { useRoomStore } from '../stores/roomStore';
 import { useWebRTC } from '../hooks/useWebRTC';
+
 import { copyToClipboard, calculateConsensus } from '../utils/helpers';
 import { Story } from '../types';
 
@@ -36,14 +38,15 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
     revealVotes, 
     clearVotes,
     leaveRoom,
-    simulateUserJoin
+    refreshRoom
   } = useRoomStore();
 
   const { 
     broadcastVote, 
-    broadcastRevealVotes, 
-    broadcastStoryAdded 
+    broadcastRevealVotes
   } = useWebRTC();
+
+
 
   const isHost = roomCurrentUser?.isHost || false;
   const currentStory = currentRoom?.stories.find(s => s.isActive);
@@ -58,13 +61,13 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
   }, [copySuccess]);
 
   const handleCopyRoomCode = async () => {
-    if (currentRoom?.id) {
-      const success = await copyToClipboard(currentRoom.id);
+    if (currentRoom?.roomCode) {
+      const success = await copyToClipboard(currentRoom.roomCode);
       setCopySuccess(success);
     }
   };
 
-  const handleAddStory = () => {
+  const handleAddStory = async () => {
     if (newStory.title.trim()) {
       const storyData = {
         title: newStory.title.trim(),
@@ -72,22 +75,16 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
         isActive: false,
       };
       
-      // Add story locally first
-      addStory(storyData);
-      
-      // Only the host broadcasts new stories
-      if (roomCurrentUser?.isHost) {
-        // Create the story object for broadcast (this should match what the store creates)
-        const newStoryForBroadcast: Story = {
-          ...storyData,
-          id: Math.random().toString(36).substring(2, 9),
-          createdAt: new Date(),
-        };
-        broadcastStoryAdded(newStoryForBroadcast);
+      try {
+        // Add story - the server will broadcast the event to all participants
+        await addStory(storyData);
+        
+        setNewStory({ title: '', description: '' });
+        setShowAddStory(false);
+      } catch (error) {
+        console.error('Failed to add story:', error);
+        // Could add user-facing error handling here
       }
-      
-      setNewStory({ title: '', description: '' });
-      setShowAddStory(false);
     }
   };
 
@@ -124,22 +121,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
     onLeaveRoom();
   };
 
-  const handleSimulateUserJoin = () => {
-    const demoUsers = [
-      { id: 'demo-user-1', name: 'Alice Johnson', isHost: false, isConnected: true, hasVoted: false },
-      { id: 'demo-user-2', name: 'Bob Smith', isHost: false, isConnected: true, hasVoted: false },
-      { id: 'demo-user-3', name: 'Carol Davis', isHost: false, isConnected: true, hasVoted: false },
-      { id: 'demo-user-4', name: 'David Wilson', isHost: false, isConnected: true, hasVoted: false },
-    ];
-    
-    // Find a user that hasn't joined yet
-    const existingUserIds = currentRoom?.users.map(u => u.id) || [];
-    const newUser = demoUsers.find(user => !existingUserIds.includes(user.id));
-    
-    if (newUser) {
-      simulateUserJoin(newUser);
-    }
-  };
+
 
   const getVoteResults = () => {
     if (!currentRoom?.isVotingRevealed) return null;
@@ -234,6 +216,16 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
                     <span className="text-sm text-gray-500">
                       Status: {roomStatus}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={RefreshCw}
+                      onClick={refreshRoom}
+                      className="ml-2"
+                      title="Refresh active story"
+                    >
+                      Refresh
+                    </Button>
                   </div>
                 </div>
 
@@ -293,12 +285,24 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow p-6 text-center">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                  No Active Story
-                </h2>
+                <div className="flex items-center justify-center mb-2">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    No Active Story
+                  </h2>
+                </div>
                 <p className="text-gray-600 mb-4">
                   {isHost ? 'Select a story to start voting' : 'Waiting for host to select a story'}
                 </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={RefreshCw}
+                    onClick={refreshRoom}
+                    className="ml-2"
+                    title="Refresh room"
+                  >
+                    Refresh
+                  </Button>
               </div>
             )}
 
@@ -327,15 +331,26 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Stories</h3>
-                {isHost && (
+                <div className="flex items-center space-x-2">
                   <Button
-                    onClick={() => setShowAddStory(true)}
+                    variant="ghost"
                     size="sm"
-                    icon={Plus}
+                    icon={RefreshCw}
+                    onClick={refreshRoom}
+                    title="Refresh stories"
                   >
-                    Add Story
+                    Refresh
                   </Button>
-                )}
+                  {isHost && (
+                    <Button
+                      onClick={() => setShowAddStory(true)}
+                      size="sm"
+                      icon={Plus}
+                    >
+                      Add Story
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {showAddStory && (
@@ -428,16 +443,15 @@ export const RoomPage: React.FC<RoomPageProps> = ({ onLeaveRoom }) => {
                     Participants ({currentRoom.users.length})
                   </h3>
                 </div>
-                {isHost && currentRoom.users.length < 5 && (
-                  <Button
-                    onClick={handleSimulateUserJoin}
-                    size="sm"
-                    variant="secondary"
-                    className="text-xs"
-                  >
-                    + Demo User
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={RefreshCw}
+                  onClick={refreshRoom}
+                  title="Refresh participants"
+                >
+                  Refresh
+                </Button>
               </div>
               <UserList 
                 users={currentRoom.users} 

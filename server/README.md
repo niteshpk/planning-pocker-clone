@@ -1,176 +1,260 @@
-# Planning Poker Server
+# Planning Poker Laravel Backend
 
-Backend API for the Planning Poker application built with Next.js, Prisma, and MongoDB.
+This Laravel backend provides a complete API for the Planning Poker application, replacing the original Next.js server while maintaining the same API structure and request/response format.
 
 ## Features
 
-- **Room Management**: Create, join, and manage planning poker rooms
-- **User Management**: Handle user joining, leaving, and updating
-- **Story Management**: Create, update, and delete user stories
-- **Voting System**: Cast votes, reveal votes, and clear votes
-- **Multiple Voting Systems**: Fibonacci, T-shirt sizes, Powers of 2, etc.
-- **Real-time Data**: API endpoints for real-time synchronization
+- **Complete API Compatibility**: All endpoints match the original Next.js API structure
+- **MySQL Database Support**: Full MySQL database integration with proper relationships
+- **SQLite Fallback**: Can use SQLite for development/testing
+- **Voting Systems**: Pre-seeded with Fibonacci, T-Shirt sizes, and other voting systems
+- **Room Management**: Create, join, update, and delete planning poker rooms
+- **User Management**: Handle user voting and room participation
+- **Story Management**: Create and manage stories for estimation
 
-## Tech Stack
+## Database Schema
 
-- **Framework**: Next.js 14 with App Router
-- **Database**: MongoDB with Prisma ORM
-- **Language**: TypeScript
-- **API**: RESTful API endpoints
-
-## Setup
-
-### Prerequisites
-
-- Node.js 18+ 
-- MongoDB (local or cloud instance)
-
-### Installation
-
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Set up environment variables:
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your MongoDB connection string:
-```
-DATABASE_URL="mongodb://localhost:27017/planning-poker"
-```
-
-3. Generate Prisma client:
-```bash
-npm run db:generate
-```
-
-4. Push database schema:
-```bash
-npm run db:push
-```
-
-### Development
-
-Start the development server:
-```bash
-npm run dev
-```
-
-The API will be available at `http://localhost:3000`
-
-### Production
-
-Build and start:
-```bash
-npm run build
-npm start
-```
+The application uses the following tables:
+- `voting_systems`: Available voting systems (Fibonacci, T-Shirt sizes, etc.)
+- `rooms`: Planning poker rooms with room codes and settings
+- `planning_poker_users`: Users participating in rooms
+- `stories`: Stories to be estimated in rooms
 
 ## API Endpoints
 
 ### Voting Systems
-- `GET /api/voting-systems` - Get all voting systems
+- `GET /api/voting-systems` - Get all available voting systems
 
 ### Rooms
 - `POST /api/rooms` - Create a new room
-- `GET /api/rooms/[roomCode]` - Get room details
-- `PUT /api/rooms/[roomCode]` - Update room
-- `DELETE /api/rooms/[roomCode]` - Delete room
-- `POST /api/rooms/[roomCode]/join` - Join a room
-- `POST /api/rooms/[roomCode]/reveal-votes` - Reveal votes
-- `POST /api/rooms/[roomCode]/clear-votes` - Clear all votes
+- `GET /api/rooms/{roomCode}` - Get room details
+- `PUT /api/rooms/{roomCode}` - Update room settings
+- `DELETE /api/rooms/{roomCode}` - Delete a room
+- `POST /api/rooms/{roomCode}/join` - Join a room
 
 ### Stories
-- `POST /api/rooms/[roomCode]/stories` - Create a story
-- `PUT /api/stories/[storyId]` - Update story
-- `DELETE /api/stories/[storyId]` - Delete story
+- `GET /api/rooms/{roomCode}/stories` - Get all stories in a room
+- `POST /api/rooms/{roomCode}/stories` - Create a new story
+- `GET /api/stories/{storyId}` - Get story details
+- `PUT /api/stories/{storyId}` - Update a story
+- `DELETE /api/stories/{storyId}` - Delete a story
 
-### Users
-- `PUT /api/users/[userId]` - Update user
-- `DELETE /api/users/[userId]` - Remove user
+### Users & Voting
+- `GET /api/users/{userId}` - Get user details
+- `PUT /api/users/{userId}` - Update user information
+- `POST /api/users/{userId}/vote` - Cast a vote
+- `DELETE /api/users/{userId}/vote` - Clear a vote
 
-### Voting
-- `POST /api/users/[userId]/vote` - Cast vote
-- `DELETE /api/users/[userId]/vote` - Clear vote
+## Setup Instructions
 
-## Database Schema
+### Prerequisites
+- PHP 8.1 or higher
+- Composer
+- MySQL (optional, SQLite is default)
 
-### Room
-- `id`: Unique identifier
-- `roomCode`: room code
-- `name`: Room name
-- `hostId`: Host user ID
-- `isVotingRevealed`: Whether votes are revealed
-- `currentStoryId`: Currently active story
-- `votingSystemName`: Selected voting system
+### Installation
 
-### User
-- `id`: Unique identifier
-- `name`: User name
-- `isHost`: Whether user is the host
-- `isConnected`: Connection status
-- `vote`: Current vote value
-- `hasVoted`: Whether user has voted
-- `roomId`: Associated room
+1. **Install Dependencies**
+   ```bash
+   composer install
+   ```
 
-### Story
-- `id`: Unique identifier
-- `title`: Story title
-- `description`: Story description
-- `estimate`: Final estimate
-- `isActive`: Whether story is currently being voted on
-- `roomId`: Associated room
+2. **Environment Configuration**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-### VotingSystem
-- `id`: Unique identifier
-- `name`: System name (Fibonacci, T-shirt, etc.)
-- `values`: Array of voting values
+3. **Database Setup**
+   
+   For SQLite (default):
+   ```bash
+   touch database/database.sqlite
+   ```
+   
+   For MySQL:
+   ```bash
+   # Update .env file:
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=planning_poker
+   DB_USERNAME=root
+   DB_PASSWORD=your_password
+   
+   # Create database
+   mysql -u root -p -e "CREATE DATABASE planning_poker;"
+   ```
 
-## Client Integration
+4. **Run Migrations and Seed Data**
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
 
-Copy the `api-client.ts` file to your frontend project and use it to communicate with the API:
+5. **Start the Server**
+   ```bash
+   # Using PHP built-in server (recommended)
+   php -S localhost:3000 -t public
+   
+   # Or using Laravel's artisan serve
+   php artisan serve --port=3000
+   ```
 
-```typescript
-import { apiClient } from './lib/api-client';
+## API Response Format
 
-// Create a room
-const response = await apiClient.createRoom({
-  name: 'Sprint Planning',
-  hostName: 'John Doe',
-  votingSystem: 'Fibonacci'
-});
+All API responses follow this consistent format:
 
-// Join a room
-const joinResponse = await apiClient.joinRoom('ABC123', 'Jane Doe');
-
-// Cast a vote
-await apiClient.castVote(userId, '5');
+```json
+{
+  "success": true,
+  "data": {...},
+  "message": "Optional success message"
+}
 ```
 
-## Scripts
+For errors:
+```json
+{
+  "success": false,
+  "error": "Error message"
+}
+```
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run db:generate` - Generate Prisma client
-- `npm run db:push` - Push schema to database
-- `npm run db:studio` - Open Prisma Studio
+## Example API Usage
 
-## Environment Variables
+### Create a Room
+```bash
+curl -X POST http://localhost:3000/api/rooms \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Sprint Planning","hostName":"John Doe","votingSystem":"Fibonacci"}'
+```
 
-- `DATABASE_URL` - MongoDB connection string
-- `NEXTAUTH_URL` - Application URL (for production)
-- `NEXTAUTH_SECRET` - Secret for authentication (if needed)
-- `ALLOWED_ORIGINS` - CORS allowed origins
+### Join a Room
+```bash
+curl -X POST http://localhost:3000/api/rooms/ABC123/join \
+  -H "Content-Type: application/json" \
+  -d '{"userName":"Jane Smith"}'
+```
 
+### Cast a Vote
+```bash
+curl -X POST http://localhost:3000/api/users/1/vote \
+  -H "Content-Type: application/json" \
+  -d '{"vote":"5"}'
+```
 
+## Development
 
-docker compose up -d
-docker exec -it mongo-rs mongosh
-rs.initiate({
-  _id: "rs0",
-  members: [{ _id: 0, host: "mongo:27017" }]
-})
+### Running Tests
+```bash
+php artisan test
+```
+
+### Code Style
+```bash
+./vendor/bin/pint
+```
+
+### Database Reset
+```bash
+php artisan migrate:fresh --seed
+```
+
+## Production Deployment
+
+1. Set `APP_ENV=production` in `.env`
+2. Set `APP_DEBUG=false` in `.env`
+3. Configure MySQL database
+4. Run `php artisan config:cache`
+5. Run `php artisan route:cache`
+6. Set up proper web server (Apache/Nginx)
+
+## Differences from Original Next.js API
+
+- Uses Laravel's Eloquent ORM instead of custom MySQL queries
+- Improved error handling and validation
+- Better database relationship management
+- Consistent API response format
+- Built-in Laravel features (middleware, validation, etc.)
+
+The API maintains 100% compatibility with the original frontend client.
+
+## Real-time Features
+
+The Laravel backend now includes comprehensive real-time functionality using Server-Sent Events (SSE):
+
+### Real-time Events
+
+All users in a room receive instant updates when:
+- **Stories are created** - New stories appear immediately for all participants
+- **Stories are updated** - Changes to story details, estimates, or active status
+- **Room settings change** - Voting reveals, active story selection, room name changes
+- **Users join/leave** - Participant list updates in real-time
+- **Voting occurs** - Vote casting and clearing notifications
+
+### Event Streaming Endpoints
+
+- `GET /api/rooms/{roomCode}/events` - Server-Sent Events stream for real-time updates
+- `GET /api/rooms/{roomCode}/state` - Get current room state for initial load
+
+### Event Types
+
+The system broadcasts these event types:
+- `story.created` - When a new story is added
+- `story.updated` - When story details change
+- `room.updated` - When room settings or participants change
+- `user.voted` - When users cast or clear votes
+- `heartbeat` - Keep-alive messages every 30 seconds
+
+### Testing Real-time Functionality
+
+1. **Start the server**:
+   ```bash
+   php -S localhost:3000 -t public
+   ```
+
+2. **Open the test page**:
+   ```
+   http://localhost:3000/realtime-test.html
+   ```
+
+3. **Test real-time updates**:
+   - Open multiple browser tabs/windows
+   - Add stories in one tab and watch them appear in others
+   - Join users and see participant updates
+   - Cast votes and observe real-time voting status
+
+### Client Integration
+
+To integrate real-time functionality in your frontend:
+
+```javascript
+// Connect to event stream
+const eventSource = new EventSource('/api/rooms/ROOMCODE/events');
+
+// Listen for story creation
+eventSource.addEventListener('story.created', function(event) {
+    const data = JSON.parse(event.data);
+    // Update UI with new story: data.story
+});
+
+// Listen for voting updates
+eventSource.addEventListener('user.voted', function(event) {
+    const data = JSON.parse(event.data);
+    // Update UI with user vote: data.user
+});
+
+// Handle connection events
+eventSource.onopen = () => console.log('Connected');
+eventSource.onerror = () => console.log('Connection error');
+```
+
+### Architecture
+
+The real-time system uses:
+- **File-based Event Storage**: Events stored in `storage/app/events/{roomCode}.json`
+- **Server-Sent Events**: HTTP streaming for real-time delivery
+- **Event Broadcasting Service**: Centralized event management
+- **Automatic Cleanup**: Old events automatically pruned (keeps last 100 events)
+
+This approach provides reliable real-time functionality without requiring external services like Redis or Pusher.

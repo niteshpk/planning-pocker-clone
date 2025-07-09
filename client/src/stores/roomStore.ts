@@ -20,12 +20,11 @@ interface RoomState {
   addUser: (user: User) => void;
   removeUser: (userId: string) => Promise<void>;
   updateUser: (userId: string, updates: Partial<User>) => Promise<void>;
-  simulateUserJoin: (user: User) => void;
   setCurrentUser: (user: User) => void;
   
   // Story management
   addStory: (story: Omit<Story, 'id' | 'createdAt'>) => Promise<void>;
-  addStoryFromWebRTC: (story: Story) => void;
+
   updateStory: (storyId: string, updates: Partial<Story>) => Promise<void>;
   removeStory: (storyId: string) => Promise<void>;
   setCurrentStory: (storyId: string) => Promise<void>;
@@ -80,11 +79,7 @@ export const useRoomStore = create<RoomState>()(
         }
       },
 
-      // Simulate other users joining the room (for demo purposes)
-      simulateUserJoin: (user: User) => {
-        const { addUser } = get();
-        addUser(user);
-      },
+
       
       joinRoom: async (roomId: string, user: User) => {
         try {
@@ -225,25 +220,12 @@ export const useRoomStore = create<RoomState>()(
             }
           } catch (error) {
             console.error('Error adding story:', error);
+            throw error;
           }
         }
       },
       
-      addStoryFromWebRTC: (story: Story) => {
-        const currentRoom = get().currentRoom;
-        if (currentRoom) {
-          // Check if story already exists to avoid duplicates
-          const storyExists = currentRoom.stories.some(s => s.id === story.id);
-          if (!storyExists) {
-            set({
-              currentRoom: {
-                ...currentRoom,
-                stories: [...currentRoom.stories, story]
-              }
-            });
-          }
-        }
-      },
+
       
       updateStory: async (storyId: string, updates: Partial<Story>) => {
         try {

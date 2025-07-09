@@ -41,18 +41,9 @@ export interface VoteResult {
   timestamp: Date;
 }
 
-export interface PeerConnection {
-  id: string;
-  peer: any; // SimplePeer instance
-  isConnected: boolean;
-}
 
-export interface WebRTCMessage {
-  type: 'user-joined' | 'user-left' | 'vote-cast' | 'vote-revealed' | 'story-changed' | 'story-added' | 'room-updated';
-  payload: any;
-  timestamp: Date;
-  senderId: string;
-}
+
+
 
 export const VOTING_SYSTEMS: VotingSystem[] = [
   {
