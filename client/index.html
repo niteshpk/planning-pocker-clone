@@ -5,9 +5,26 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Planning Poker - Real-time Estimation</title>
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+
   </head>
   <body>
     <div id="root"></div>
+  <script>
+
+    // Enable pusher logging - don't include this in production
+    Pusher.logToConsole = true;
+
+    var pusher = new Pusher('58cf5e548256f43f22d4', {
+      cluster: 'ap2'
+    });
+
+    var channel = pusher.subscribe('my-channel');
+    channel.bind('my-event', function(data) {
+      alert(JSON.stringify(data));
+    });
+  </script>
     <script type="module" src="/src/main.tsx"></script>
+  
   </body>
 </html>
